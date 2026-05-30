@@ -1,0 +1,1082 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>高中三角函数图像交互式演示系统</title>
+    <!-- 只保留最必要的两个CDN，确保加载稳定 -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjs@11.8.0/lib/browser/math.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+    <style>
+        /* 全局样式重置 */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: "Microsoft YaHei", Arial, sans-serif;
+        }
+
+        body {
+            background-color: #f5f9ff;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* 顶部标题栏 */
+        header {
+            background-color: #165DFF;
+            color: white;
+            padding: 15px;
+            text-align: center;
+            font-size: 28px;
+            font-weight: bold;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        /* 主内容区 */
+        main {
+            flex: 1;
+            display: flex;
+            padding: 15px;
+            gap: 15px;
+        }
+
+        /* 通用面板样式 */
+        .panel {
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            padding: 15px;
+            overflow-y: auto;
+        }
+
+        /* 左侧控制面板 */
+        .control-panel {
+            width: 25%;
+            min-width: 280px;
+        }
+
+        .control-panel h3 {
+            font-size: 18px;
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #eee;
+        }
+
+        /* 按钮样式 */
+        .btn-group {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.2s;
+        }
+
+        .btn-primary {
+            background-color: #165DFF;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background-color: #0d47a1;
+        }
+
+        .btn-secondary {
+            background-color: #e0e0e0;
+            color: #333;
+        }
+
+        .btn-secondary:hover {
+            background-color: #bdbdbd;
+        }
+
+        .btn-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+
+        /* 滑块样式 */
+        .slider-group {
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+        }
+
+        .slider-label {
+            width: 80px;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .slider {
+            flex: 1;
+            height: 6px;
+            -webkit-appearance: none;
+            background: #e0e0e0;
+            border-radius: 3px;
+            outline: none;
+        }
+
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 16px;
+            height: 16px;
+            background: #165DFF;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+
+        .slider-value {
+            width: 40px;
+            text-align: right;
+            font-size: 14px;
+            margin-left: 10px;
+        }
+
+        /* 输入框样式 */
+        .input-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .input-item {
+            flex: 1;
+        }
+
+        .input-item label {
+            display: block;
+            font-size: 12px;
+            margin-bottom: 4px;
+        }
+
+        .input-item input {
+            width: 100%;
+            padding: 6px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        /* 中央绘图区 */
+        .canvas-container {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 10px;
+        }
+
+        #trigCanvas {
+            border: 1px solid #eee;
+            background-color: white;
+            display: block;
+        }
+
+        /* 右侧知识点区 */
+        .knowledge-panel {
+            width: 25%;
+            min-width: 280px;
+            font-size: 14px;
+        }
+
+        .knowledge-panel h3 {
+            font-size: 18px;
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .knowledge-panel p {
+            margin-bottom: 8px;
+            line-height: 1.6;
+        }
+
+        .formula {
+            background-color: #f5f5f5;
+            padding: 6px;
+            border-radius: 4px;
+            margin: 8px 0;
+            font-family: monospace;
+        }
+
+        .error-point {
+            color: #d32f2f;
+            font-weight: 500;
+        }
+
+        /* 底部状态栏 */
+        footer {
+            background-color: #333;
+            color: white;
+            padding: 10px;
+            text-align: center;
+            font-size: 14px;
+        }
+
+        /* 弹窗样式 */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal-content {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 400px;
+        }
+
+        .modal-content h3 {
+            margin-bottom: 15px;
+        }
+
+        .modal-content p {
+            margin-bottom: 20px;
+            line-height: 1.6;
+        }
+
+        /* 课堂练习样式 */
+        .exam-area {
+            display: none;
+        }
+
+        .option-item {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-bottom: 8px;
+            cursor: pointer;
+        }
+
+        .option-item:hover {
+            background-color: #f5f5f5;
+        }
+
+        .option-item input {
+            margin-right: 8px;
+        }
+
+        /* 响应式适配 */
+        @media (max-width: 1200px) {
+            main {
+                flex-direction: column;
+            }
+            .control-panel, .knowledge-panel {
+                width: 100%;
+                min-width: auto;
+                height: auto;
+            }
+            .canvas-container {
+                height: 500px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- 顶部标题栏 -->
+    <header>
+        高中三角函数图像交互式演示系统
+    </header>
+
+    <!-- 主内容区 -->
+    <main>
+        <!-- 左侧控制面板 -->
+        <div class="control-panel panel">
+            <h3>函数选择</h3>
+            <div class="btn-group">
+                <button id="sinBtn" class="btn btn-primary">y=sinx</button>
+                <button id="cosBtn" class="btn btn-secondary">y=cosx</button>
+                <button id="tanBtn" class="btn btn-secondary">y=tanx</button>
+            </div>
+
+            <h3>参数调节</h3>
+            <div class="slider-group">
+                <label class="slider-label">振幅 A:</label>
+                <input type="range" id="paramA" min="0.1" max="3" step="0.1" value="1" class="slider">
+                <span id="valA" class="slider-value">1</span>
+            </div>
+            <div class="slider-group">
+                <label class="slider-label">角频率 ω:</label>
+                <input type="range" id="paramW" min="0.2" max="3" step="0.1" value="1" class="slider">
+                <span id="valW" class="slider-value">1</span>
+            </div>
+            <div class="slider-group">
+                <label class="slider-label">初相 φ:</label>
+                <input type="range" id="paramPhi" min="-3.1416" max="3.1416" step="0.2618" value="0" class="slider">
+                <span id="valPhi" class="slider-value">0</span>
+            </div>
+            <div class="slider-group">
+                <label class="slider-label">平移 k:</label>
+                <input type="range" id="paramK" min="-2" max="2" step="0.1" value="0" class="slider">
+                <span id="valK" class="slider-value">0</span>
+            </div>
+
+            <h3>绘图区间</h3>
+            <div class="input-group">
+                <div class="input-item">
+                    <label>X最小值</label>
+                    <input type="number" id="xMin" value="-6.2832" step="0.1">
+                </div>
+                <div class="input-item">
+                    <label>X最大值</label>
+                    <input type="number" id="xMax" value="12.5664" step="0.1">
+                </div>
+            </div>
+
+            <h3>教学辅助</h3>
+            <div class="btn-grid">
+                <button id="fivePointBtn" class="btn btn-secondary">五点作图法</button>
+                <button id="auxLineBtn" class="btn btn-secondary">辅助线</button>
+                <button id="compareBtn" class="btn btn-secondary">对比原图</button>
+                <button id="clearCompareBtn" class="btn btn-secondary">清除对比</button>
+            </div>
+
+            <h3>动画演示</h3>
+            <div class="btn-group">
+                <button id="animPhaseBtn" class="btn btn-secondary">相位平移</button>
+                <button id="animCycleBtn" class="btn btn-secondary">周期伸缩</button>
+            </div>
+            <div class="btn-group">
+                <button id="animAmpBtn" class="btn btn-secondary">振幅伸缩</button>
+                <button id="animPauseBtn" class="btn btn-secondary">暂停/播放</button>
+            </div>
+            <div class="slider-group">
+                <label class="slider-label">动画速度:</label>
+                <input type="range" id="animSpeed" min="1" max="10" step="1" value="5" class="slider">
+            </div>
+
+            <h3>一键操作</h3>
+            <div class="btn-grid">
+                <button id="resetBtn" class="btn btn-primary">重置参数</button>
+                <button id="fullscreenBtn" class="btn btn-primary">全屏演示</button>
+                <button id="screenshotBtn" class="btn btn-primary">截图保存</button>
+                <button id="applyRangeBtn" class="btn btn-primary">应用区间</button>
+            </div>
+
+            <h3 style="color: #d32f2f;">📝 课堂练习</h3>
+            <button id="generateExamBtn" class="btn btn-primary" style="width: 100%; margin-bottom: 15px;">生成考题</button>
+            <div id="examArea" class="exam-area">
+                <p style="margin-bottom: 10px;">请根据图像选择正确解析式：</p>
+                <div id="options"></div>
+                <button id="submitAnswerBtn" class="btn btn-secondary" style="width: 100%; margin-top: 10px;">提交答案</button>
+            </div>
+        </div>
+
+        <!-- 中央绘图区 -->
+        <div class="canvas-container panel">
+            <canvas id="trigCanvas" width="800" height="550"></canvas>
+        </div>
+
+        <!-- 右侧知识点区 -->
+        <div class="knowledge-panel panel" id="knowledgeCard">
+            <h3>📚 正弦函数知识点</h3>
+            <p><strong>标准公式：</strong></p>
+            <p class="formula">y=sinx</p>
+            <p><strong>变形公式：</strong></p>
+            <p class="formula">y=A·sin(ωx+φ)+k</p>
+            
+            <p><strong>参数含义：</strong></p>
+            <p>✅ A：振幅（纵向伸缩）</p>
+            <p>✅ ω：角频率（横向伸缩）</p>
+            <p>✅ φ：初相（左右平移）</p>
+            <p>✅ k：上下平移</p>
+            
+            <p><strong>核心结论：</strong></p>
+            <p>周期：T=2π/|ω|</p>
+            <p>定义域：R</p>
+            <p>值域：[k-A, k+A]</p>
+            <p>奇偶性：奇函数(φ=0)</p>
+            
+            <p><strong>变换口诀：</strong></p>
+            <p style="color: #165DFF; font-weight: 500;">左加右减、上加下减</p>
+            <p style="color: #165DFF; font-weight: 500;">横缩纵伸、先缩后移</p>
+            
+            <p><strong class="error-point">易错点：</strong></p>
+            <p>1. 相位变换需提取ω，先周期后平移</p>
+            <p>2. 五点法坐标需对应ωx+φ=0,π/2,π,3π/2,2π</p>
+        </div>
+    </main>
+
+    <!-- 底部状态栏 -->
+    <footer>
+        <span id="statusText">当前函数：y=sinx | 周期：2π | 振幅：1 | 初相：0 | 平移：0</span>
+    </footer>
+
+    <!-- 答题解析弹窗 -->
+    <div id="answerModal" class="modal">
+        <div class="modal-content">
+            <h3 id="modalTitle">答题结果</h3>
+            <p id="modalContent"></p>
+            <button id="closeModalBtn" class="btn btn-primary" style="width: 100%;">关闭</button>
+        </div>
+    </div>
+
+    <script>
+        // ==================== 全局核心变量 ====================
+        const canvas = document.getElementById('trigCanvas');
+        const ctx = canvas.getContext('2d');
+        const math = window.math; // 确保从window对象获取math
+        
+        // 函数配置
+        let currentFunc = 'sin'; // sin/cos/tan
+        const funcColors = { sin: '#0066CC', cos: '#CC3333', tan: '#009933' };
+        
+        // 绘图参数
+        let A = 1, w = 1, phi = 0, k = 0;
+        let xMin = -2 * Math.PI, xMax = 4 * Math.PI;
+        let yMin = -3, yMax = 3;
+        
+        // 辅助功能开关
+        let showFivePoints = false;
+        let showAuxLines = false;
+        let showCompare = false;
+        
+        // 动画参数
+        let animating = false;
+        let animSpeed = 5;
+        let animFrame = null;
+        
+        // 课堂练习参数
+        let examData = null;
+
+        // ==================== 工具函数：坐标转换 ====================
+        function toCanvasX(x) {
+            return canvas.width * (x - xMin) / (xMax - xMin);
+        }
+        
+        function toCanvasY(y) {
+            return canvas.height * (1 - (y - yMin) / (yMax - yMin));
+        }
+
+        // ==================== 工具函数：格式化π显示 ====================
+        function formatPi(num) {
+            if (num === 0) return '0';
+            const pi = Math.PI;
+            const ratio = num / pi;
+            if (Math.abs(ratio - 1) < 0.01) return 'π';
+            if (Math.abs(ratio + 1) < 0.01) return '-π';
+            if (Math.abs(ratio - 0.5) < 0.01) return 'π/2';
+            if (Math.abs(ratio + 0.5) < 0.01) return '-π/2';
+            return ratio.toFixed(2) + 'π';
+        }
+
+        // ==================== 核心绘图函数 ====================
+        function drawAll() {
+            console.log('开始绘制图像...'); // 调试日志
+            
+            // 清空画布
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+
+            drawGrid();       // 绘制网格
+            drawAxis();       // 绘制坐标系
+            if (showCompare) drawOriginalFunc(); // 绘制对比原图
+            drawTrigFunc();   // 绘制当前函数图像
+            if (showAuxLines) drawAuxiliaryLines(); // 绘制辅助线
+            if (showFivePoints) drawFivePoints();  // 绘制五点法
+            
+            console.log('图像绘制完成'); // 调试日志
+        }
+
+        // 绘制网格线
+        function drawGrid() {
+            ctx.strokeStyle = '#E5E7EB';
+            ctx.lineWidth = 0.5;
+            
+            // 竖线
+            for (let x = xMin; x <= xMax; x += Math.PI/2) {
+                ctx.beginPath();
+                ctx.moveTo(toCanvasX(x), 0);
+                ctx.lineTo(toCanvasX(x), canvas.height);
+                ctx.stroke();
+            }
+            
+            // 横线
+            for (let y = yMin; y <= yMax; y += 0.5) {
+                ctx.beginPath();
+                ctx.moveTo(0, toCanvasY(y));
+                ctx.lineTo(canvas.width, toCanvasY(y));
+                ctx.stroke();
+            }
+        }
+
+        // 绘制坐标轴
+        function drawAxis() {
+            ctx.strokeStyle = '#333';
+            ctx.lineWidth = 2;
+            
+            // X轴
+            ctx.beginPath();
+            ctx.moveTo(0, toCanvasY(0));
+            ctx.lineTo(canvas.width, toCanvasY(0));
+            ctx.stroke();
+            
+            // Y轴
+            ctx.beginPath();
+            ctx.moveTo(toCanvasX(0), 0);
+            ctx.lineTo(toCanvasX(0), canvas.height);
+            ctx.stroke();
+
+            // 绘制刻度与标注
+            ctx.fillStyle = '#333';
+            ctx.font = '14px Arial';
+            ctx.textAlign = 'center';
+            
+            // X轴刻度（π为单位）
+            for (let x = xMin; x <= xMax; x += Math.PI) {
+                const cx = toCanvasX(x);
+                ctx.fillText(formatPi(x), cx, toCanvasY(0) + 20);
+            }
+            
+            // Y轴刻度
+            ctx.textAlign = 'right';
+            for (let y = yMin; y <= yMax; y++) {
+                const cy = toCanvasY(y);
+                ctx.fillText(y.toString(), toCanvasX(0) - 5, cy + 5);
+            }
+        }
+
+        // 绘制三角函数图像
+        function drawTrigFunc() {
+            ctx.strokeStyle = funcColors[currentFunc];
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+
+            const step = (xMax - xMin) / 1000; // 高精度绘制
+            let firstPoint = true;
+
+            for (let x = xMin; x <= xMax; x += step) {
+                const arg = w * x + phi;
+                let y;
+                
+                // 计算函数值（使用原生Math代替math.js，确保兼容性）
+                switch (currentFunc) {
+                    case 'sin': 
+                        y = A * Math.sin(arg) + k; 
+                        break;
+                    case 'cos': 
+                        y = A * Math.cos(arg) + k; 
+                        break;
+                    case 'tan': 
+                        y = A * Math.tan(arg) + k;
+                        // 正切：跳过渐近线区域，分段绘制
+                        if (Math.abs(y) > 10 || isNaN(y) || !isFinite(y)) {
+                            firstPoint = true;
+                            continue;
+                        }
+                        break;
+                }
+                
+                // 超出Y轴范围不绘制
+                if (y < yMin || y > yMax) {
+                    firstPoint = true;
+                    continue;
+                }
+                
+                // 绘制路径
+                const cx = toCanvasX(x);
+                const cy = toCanvasY(y);
+                if (firstPoint) {
+                    ctx.moveTo(cx, cy);
+                    firstPoint = false;
+                } else {
+                    ctx.lineTo(cx, cy);
+                }
+            }
+            ctx.stroke();
+
+            // 正切：绘制渐近线
+            if (currentFunc === 'tan' && showAuxLines) {
+                ctx.strokeStyle = '#ff9900';
+                ctx.lineWidth = 1;
+                ctx.setLineDash([5, 5]);
+                
+                for (let x = xMin; x <= xMax; x += Math.PI/w) {
+                    const asyX = (Math.PI/2 - phi)/w + x;
+                    if (asyX > xMin && asyX < xMax) {
+                        ctx.beginPath();
+                        ctx.moveTo(toCanvasX(asyX), 0);
+                        ctx.lineTo(toCanvasX(asyX), canvas.height);
+                        ctx.stroke();
+                    }
+                }
+                ctx.setLineDash([]);
+            }
+        }
+
+        // 绘制原始对比函数（虚线）
+        function drawOriginalFunc() {
+            ctx.strokeStyle = funcColors[currentFunc];
+            ctx.lineWidth = 2;
+            ctx.setLineDash([10, 5]); // 虚线样式
+            ctx.beginPath();
+            
+            const step = (xMax - xMin) / 1000;
+            let firstPoint = true;
+
+            for (let x = xMin; x <= xMax; x += step) {
+                let y;
+                switch (currentFunc) {
+                    case 'sin': y = Math.sin(x); break;
+                    case 'cos': y = Math.cos(x); break;
+                    case 'tan': 
+                        y = Math.tan(x);
+                        if (Math.abs(y) > 10) { firstPoint = true; continue; }
+                        break;
+                }
+                if (y < yMin || y > yMax) { firstPoint = true; continue; }
+                
+                const cx = toCanvasX(x);
+                const cy = toCanvasY(y);
+                firstPoint ? ctx.moveTo(cx, cy) : ctx.lineTo(cx, cy);
+                firstPoint = false;
+            }
+            ctx.stroke();
+            ctx.setLineDash([]); // 恢复实线
+        }
+
+        // 绘制五点作图法（高考必考）
+        function drawFivePoints() {
+            ctx.fillStyle = '#FF6600';
+            ctx.strokeStyle = '#FF6600';
+            ctx.lineWidth = 1;
+            ctx.font = '12px bold Arial';
+            ctx.textAlign = 'left';
+
+            // 五点核心值：0, π/2, π, 3π/2, 2π
+            const points = [0, Math.PI/2, Math.PI, 3*Math.PI/2, 2*Math.PI];
+            points.forEach(t => {
+                const x = (t - phi) / w;
+                if (x < xMin || x > xMax) return;
+                
+                let y;
+                switch (currentFunc) {
+                    case 'sin': y = A * Math.sin(t) + k; break;
+                    case 'cos': y = A * Math.cos(t) + k; break;
+                    default: return; // 正切无五点法
+                }
+                if (y < yMin || y > yMax) return;
+                
+                // 绘制关键点
+                ctx.beginPath();
+                ctx.arc(toCanvasX(x), toCanvasY(y), 5, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // 标注坐标
+                ctx.fillText(`(${formatPi(x)}, ${y.toFixed(1)})`, toCanvasX(x)+8, toCanvasY(y)-8);
+            });
+        }
+
+        // 绘制辅助线（中线、最值、对称轴）
+        function drawAuxiliaryLines() {
+            // 中线 y=k
+            ctx.strokeStyle = '#999';
+            ctx.lineWidth = 1;
+            ctx.setLineDash([3, 3]);
+            ctx.beginPath();
+            ctx.moveTo(0, toCanvasY(k));
+            ctx.lineTo(canvas.width, toCanvasY(k));
+            ctx.stroke();
+
+            // 最值线
+            ctx.strokeStyle = '#666';
+            ctx.beginPath();
+            ctx.moveTo(0, toCanvasY(k+A));
+            ctx.lineTo(canvas.width, toCanvasY(k+A));
+            ctx.moveTo(0, toCanvasY(k-A));
+            ctx.lineTo(canvas.width, toCanvasY(k-A));
+            ctx.stroke();
+            ctx.setLineDash([]);
+        }
+
+        // ==================== 交互控制函数 ====================
+        // 更新参数显示
+        function updateParamDisplay() {
+            document.getElementById('valA').textContent = A.toFixed(1);
+            document.getElementById('valW').textContent = w.toFixed(1);
+            document.getElementById('valPhi').textContent = formatPi(phi);
+            document.getElementById('valK').textContent = k.toFixed(1);
+            updateStatusBar();
+            drawAll();
+        }
+
+        // 更新底部状态栏
+        function updateStatusBar() {
+            let funcText;
+            const cycle = currentFunc === 'tan' ? Math.PI/w : 2*Math.PI/w;
+            switch (currentFunc) {
+                case 'sin': funcText = `y=${A}sin(${w}x+${formatPi(phi)})+${k}`; break;
+                case 'cos': funcText = `y=${A}cos(${w}x+${formatPi(phi)})+${k}`; break;
+                case 'tan': funcText = `y=${A}tan(${w}x+${formatPi(phi)})+${k}`; break;
+            }
+            document.getElementById('statusText').textContent = 
+                `当前函数：${funcText} | 周期：${formatPi(cycle)} | 振幅：${A} | 初相：${formatPi(phi)} | 平移：${k}`;
+        }
+
+        // 切换函数类型
+        function switchFunc(func) {
+            currentFunc = func;
+            // 重置按钮样式
+            document.getElementById('sinBtn').className = 'btn btn-secondary';
+            document.getElementById('cosBtn').className = 'btn btn-secondary';
+            document.getElementById('tanBtn').className = 'btn btn-secondary';
+            document.getElementById(`${func}Btn`).className = 'btn btn-primary';
+            // 更新知识点面板
+            updateKnowledgeCard();
+            updateParamDisplay();
+        }
+
+        // 更新右侧知识点
+        function updateKnowledgeCard() {
+            const card = document.getElementById('knowledgeCard');
+            let content = '';
+            switch (currentFunc) {
+                case 'sin':
+                    content = `
+                        <h3>📚 正弦函数知识点</h3>
+                        <p><strong>标准公式：</strong></p>
+                        <p class="formula">y=sinx</p>
+                        <p><strong>变形公式：</strong></p>
+                        <p class="formula">y=A·sin(ωx+φ)+k</p>
+                        
+                        <p><strong>参数含义：</strong></p>
+                        <p>✅ A：振幅（纵向伸缩）</p>
+                        <p>✅ ω：角频率（横向伸缩）</p>
+                        <p>✅ φ：初相（左右平移）</p>
+                        <p>✅ k：上下平移</p>
+                        
+                        <p><strong>核心结论：</strong></p>
+                        <p>周期：T=2π/|ω|</p>
+                        <p>定义域：R</p>
+                        <p>值域：[k-A, k+A]</p>
+                        <p>奇偶性：奇函数(φ=0)</p>
+                        
+                        <p><strong>变换口诀：</strong></p>
+                        <p style="color: #165DFF; font-weight: 500;">左加右减、上加下减</p>
+                        <p style="color: #165DFF; font-weight: 500;">横缩纵伸、先缩后移</p>
+                        
+                        <p><strong class="error-point">易错点：</strong></p>
+                        <p>1. 相位变换需提取ω，先周期后平移</p>
+                        <p>2. 五点法坐标需对应ωx+φ=0,π/2,π,3π/2,2π</p>
+                    `;
+                    break;
+                case 'cos':
+                    content = `
+                        <h3>📚 余弦函数知识点</h3>
+                        <p><strong>标准公式：</strong></p>
+                        <p class="formula">y=cosx</p>
+                        <p><strong>变形公式：</strong></p>
+                        <p class="formula">y=A·cos(ωx+φ)+k</p>
+                        
+                        <p><strong>参数含义：</strong></p>
+                        <p>✅ A：振幅（纵向伸缩）</p>
+                        <p>✅ ω：角频率（横向伸缩）</p>
+                        <p>✅ φ：初相（左右平移）</p>
+                        <p>✅ k：上下平移</p>
+                        
+                        <p><strong>核心结论：</strong></p>
+                        <p>周期：T=2π/|ω|</p>
+                        <p>定义域：R</p>
+                        <p>值域：[k-A, k+A]</p>
+                        <p>奇偶性：偶函数(φ=0)</p>
+                        
+                        <p><strong>变换口诀：</strong></p>
+                        <p style="color: #165DFF; font-weight: 500;">左加右减、上加下减</p>
+                        <p style="color: #165DFF; font-weight: 500;">横缩纵伸、先缩后移</p>
+                        
+                        <p><strong class="error-point">易错点：</strong></p>
+                        <p>1. 余弦图像由正弦向左平移π/2得到</p>
+                        <p>2. 对称中心与对称轴和正弦函数不同</p>
+                    `;
+                    break;
+                case 'tan':
+                    content = `
+                        <h3>📚 正切函数知识点</h3>
+                        <p><strong>标准公式：</strong></p>
+                        <p class="formula">y=tanx</p>
+                        <p><strong>变形公式：</strong></p>
+                        <p class="formula">y=A·tan(ωx+φ)+k</p>
+                        
+                        <p><strong>参数含义：</strong></p>
+                        <p>✅ A：纵向伸缩</p>
+                        <p>✅ ω：周期伸缩</p>
+                        <p>✅ φ：左右平移</p>
+                        <p>✅ k：上下平移</p>
+                        
+                        <p><strong>核心结论：</strong></p>
+                        <p>周期：T=π/|ω|</p>
+                        <p>定义域：{x|x≠π/2+kπ,k∈Z}</p>
+                        <p>值域：R</p>
+                        <p>奇偶性：奇函数(φ=0)</p>
+                        
+                        <p><strong>变换口诀：</strong></p>
+                        <p style="color: #165DFF; font-weight: 500;">左加右减、上加下减</p>
+                        <p style="color: #165DFF; font-weight: 500;">横缩纵伸</p>
+                        
+                        <p><strong class="error-point">易错点：</strong></p>
+                        <p>1. 定义域不连续，存在垂直渐近线</p>
+                        <p>2. 周期为π，非2π，无五点法</p>
+                        <p>3. 图像分段绘制，无最值</p>
+                    `;
+                    break;
+            }
+            card.innerHTML = content;
+        }
+
+        // 重置参数
+        function resetParams() {
+            A = 1; w = 1; phi = 0; k = 0;
+            xMin = -2*Math.PI; xMax = 4*Math.PI;
+            document.getElementById('paramA').value = A;
+            document.getElementById('paramW').value = w;
+            document.getElementById('paramPhi').value = phi;
+            document.getElementById('paramK').value = k;
+            document.getElementById('xMin').value = xMin;
+            document.getElementById('xMax').value = xMax;
+            showFivePoints = false;
+            showAuxLines = false;
+            showCompare = false;
+            stopAnimation();
+            updateParamDisplay();
+        }
+
+        // 动画控制
+        function stopAnimation() {
+            if (animFrame) cancelAnimationFrame(animFrame);
+            animating = false;
+        }
+        
+        function startAnimation(type) {
+            stopAnimation();
+            animating = true;
+            let progress = 0;
+            const speed = animSpeed / 10;
+            
+            const animate = () => {
+                if (!animating) return;
+                progress += speed;
+                
+                switch (type) {
+                    case 'phase': phi = Math.sin(progress) * Math.PI; break;
+                    case 'cycle': w = 1 + Math.sin(progress) * 2; break;
+                    case 'amp': A = 1 + Math.sin(progress) * 2; break;
+                }
+                
+                // 限制参数范围
+                A = Math.max(0.1, Math.min(3, A));
+                w = Math.max(0.2, Math.min(3, w));
+                phi = Math.max(-Math.PI, Math.min(Math.PI, phi));
+                
+                // 更新滑块
+                document.getElementById('paramA').value = A;
+                document.getElementById('paramW').value = w;
+                document.getElementById('paramPhi').value = phi;
+                
+                updateParamDisplay();
+                animFrame = requestAnimationFrame(animate);
+            };
+            animate();
+        }
+
+        // 全屏演示
+        function fullscreen() {
+            if (document.documentElement.requestFullscreen) {
+                document.documentElement.requestFullscreen();
+            }
+        }
+
+        // 截图保存
+        function screenshot() {
+            html2canvas(canvas).then(canvas => {
+                const link = document.createElement('a');
+                link.download = '三角函数图像.png';
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+            });
+        }
+
+        // ==================== 课堂练习模块 ====================
+        // 生成随机考题
+        function generateExam() {
+            const funcs = ['sin', 'cos'];
+            const randFunc = funcs[Math.floor(Math.random() * 2)];
+            const randA = (Math.random() * 2 + 0.5).toFixed(1);
+            const randW = (Math.random() * 2 + 0.5).toFixed(1);
+            const randPhi = (Math.random() * 2 - 1).toFixed(2) * Math.PI;
+            const randK = (Math.random() * 2 - 1).toFixed(1);
+            
+            // 正确答案
+            const correct = {
+                func: randFunc, A: randA, w: randW, phi: randPhi, k: randK,
+                text: `y=${randA}${randFunc}(${randW}x+${formatPi(randPhi)})+${randK}`
+            };
+            
+            // 生成3个错误答案
+            const wrong = [];
+            for (let i=0; i<3; i++) {
+                const wA = (Math.random() * 2 + 0.5).toFixed(1);
+                const wW = (Math.random() * 2 + 0.5).toFixed(1);
+                wrong.push({
+                    func: randFunc, A: wA, w: wW, phi: randPhi+Math.PI/4, k: randK,
+                    text: `y=${wA}${randFunc}(${wW}x+${formatPi(randPhi+Math.PI/4)})+${randK}`
+                });
+            }
+            
+            // 打乱选项
+            const options = [correct, ...wrong].sort(() => Math.random() - 0.5);
+            examData = { correct, options };
+            
+            // 绘制考题图像
+            switchFunc(randFunc);
+            A = parseFloat(randA);
+            w = parseFloat(randW);
+            phi = randPhi;
+            k = parseFloat(randK);
+            showCompare = false;
+            showFivePoints = false;
+            showAuxLines = false;
+            updateParamDisplay();
+            
+            // 显示选项
+            document.getElementById('examArea').style.display = 'block';
+            const optDom = document.getElementById('options');
+            optDom.innerHTML = options.map((o, i) => `
+                <div class="option-item">
+                    <input type="radio" name="answer" value="${i}" id="opt${i}">
+                    <label for="opt${i}">${o.text}</label>
+                </div>
+            `).join('');
+        }
+
+        // 提交答案
+        function submitAnswer() {
+            const selected = document.querySelector('input[name="answer"]:checked');
+            if (!selected) {
+                showModal('提示', '请选择一个答案！');
+                return;
+            }
+            
+            const isCorrect = selected.value == examData.options.findIndex(o => o.text === examData.correct.text);
+            if (isCorrect) {
+                showModal('✅ 回答正确', '解析：根据图像的振幅、周期、平移量，可判断解析式正确！');
+            } else {
+                showModal('❌ 回答错误', `正确答案：${examData.correct.text}\n\n解析：观察图像的周期、最高点、平移位置，匹配参数特征`);
+            }
+        }
+
+        // 弹窗显示
+        function showModal(title, content) {
+            document.getElementById('modalTitle').textContent = title;
+            document.getElementById('modalContent').textContent = content;
+            document.getElementById('answerModal').style.display = 'flex';
+        }
+
+        // ==================== 事件绑定 ====================
+        // 页面加载完成后初始化
+        window.onload = function() {
+            console.log('页面加载完成，开始初始化...');
+            
+            // 参数滑块事件
+            document.getElementById('paramA').addEventListener('input', e => { 
+                A = parseFloat(e.target.value); 
+                updateParamDisplay(); 
+            });
+            
+            document.getElementById('paramW').addEventListener('input', e => { 
+                w = parseFloat(e.target.value); 
+                updateParamDisplay(); 
+            });
+            
+            document.getElementById('paramPhi').addEventListener('input', e => { 
+                phi = parseFloat(e.target.value); 
+                updateParamDisplay(); 
+            });
+            
+            document.getElementById('paramK').addEventListener('input', e => { 
+                k = parseFloat(e.target.value); 
+                updateParamDisplay(); 
+            });
+            
+            document.getElementById('animSpeed').addEventListener('input', e => { 
+                animSpeed = parseInt(e.target.value); 
+            });
+
+            // 函数切换事件
+            document.getElementById('sinBtn').addEventListener('click', () => switchFunc('sin'));
+            document.getElementById('cosBtn').addEventListener('click', () => switchFunc('cos'));
+            document.getElementById('tanBtn').addEventListener('click', () => switchFunc('tan'));
+
+            // 辅助功能事件
+            document.getElementById('fivePointBtn').addEventListener('click', () => { 
+                showFivePoints = !showFivePoints; 
+                drawAll(); 
+            });
+            
+            document.getElementById('auxLineBtn').addEventListener('click', () => { 
+                showAuxLines = !showAuxLines; 
+                drawAll(); 
+            });
+            
+            document.getElementById('compareBtn').addEventListener('click', () => { 
+                showCompare = true; 
+                drawAll(); 
+            });
+            
+            document.getElementById('clearCompareBtn').addEventListener('click', () => { 
+                showCompare = false; 
+                drawAll(); 
+            });
+
+            // 动画事件
+            document.getElementById('animPhaseBtn').addEventListener('click', () => startAnimation('phase'));
+            document.getElementById('animCycleBtn').addEventListener('click', () => startAnimation('cycle'));
+            document.getElementById('animAmpBtn').addEventListener('click', () => startAnimation('amp'));
+            document.getElementById('animPauseBtn').addEventListener('click', () => {
+                animating ? stopAnimation() : startAnimation('phase');
+            });
+
+            // 一键操作事件
+            document.getElementById('resetBtn').addEventListener('click', resetParams);
+            document.getElementById('fullscreenBtn').addEventListener('click', fullscreen);
+            document.getElementById('screenshotBtn').addEventListener('click', screenshot);
+            document.getElementById('applyRangeBtn').addEventListener('click', () => {
+                xMin = parseFloat(document.getElementById('xMin').value);
+                xMax = parseFloat(document.getElementById('xMax').value);
+                updateParamDisplay();
+            });
+
+            // 练习模块事件
+            document.getElementById('generateExamBtn').addEventListener('click', generateExam);
+            document.getElementById('submitAnswerBtn').addEventListener('click', submitAnswer);
+            document.getElementById('closeModalBtn').addEventListener('click', () => {
+                document.getElementById('answerModal').style.display = 'none';
+            });
+
+            // 初始化绘制
+            resetParams();
+            console.log('初始化完成');
+        };
+    </script>
+</body>
+</html>
